@@ -4,21 +4,21 @@ Computes the W₂ distance between two densities on the periodic
 domain [0,1)² by solving the Monge-Ampère equation.
 
 The perturbation formulation is:
-  φ(x) = ½|x|² + ψ(x)
-  T(x) = x + ∇ψ(x)
+ φ(x) = ½|x|² + ψ(x)
+ T(x) = x + ∇ψ(x)
 
 where ψ = c·x + ψ_per(x) with c a constant vector (the mean
 displacement) and ψ_per periodic.
 
 For the MA equation:
-  det(I + D²ψ) = ρ₀(x) / ρ₁(x + ∇ψ(x))
+ det(I + D²ψ) = ρ₀(x) / ρ₁(x + ∇ψ(x))
 
 Since D²(c·x) = 0, only ψ_per contributes to the Hessian.
 
 Algorithm:
-  1. Estimate mean displacement c from the center-of-mass difference
-  2. Solve for ψ_per iteratively using the relaxation or Newton solver
-  3. The full transport map is T(x) = x + c + ∇ψ_per(x)
+ 1. Estimate mean displacement c from the center-of-mass difference
+ 2. Solve for ψ_per iteratively using the relaxation or Newton solver
+ 3. The full transport map is T(x) = x + c + ∇ψ_per(x)
 """
 
 from __future__ import annotations
@@ -30,13 +30,13 @@ import numpy as np
 
 from monge_ampere.boundary import BoundaryCondition
 from monge_ampere.operators import (
-    gradient,
-    generate_stencil_directions,
+  gradient,
+  generate_stencil_directions,
 )
 from monge_ampere.solvers import (
-    solve_ma_iteration,
-    solve_ma_newton,
-    SolverResult,
+  solve_ma_iteration,
+  solve_ma_newton,
+  SolverResult,
 )
 
 # ======================================================================
@@ -47,6 +47,7 @@ from monge_ampere.solvers import (
 @dataclass
 class OTResult:
   """Result from the optimal transport solver."""
+
   psi: np.ndarray  # periodic perturbation ψ_per
   mean_shift: np.ndarray  # constant displacement vector c
   transport_map: tuple[np.ndarray, np.ndarray]  # (Tx, Ty)
@@ -59,8 +60,9 @@ class OTResult:
 # ======================================================================
 
 
-def _interpolate_periodic(f: np.ndarray, Xq: np.ndarray, Yq: np.ndarray,
-                          h: float) -> np.ndarray:
+def _interpolate_periodic(
+  f: np.ndarray, Xq: np.ndarray, Yq: np.ndarray, h: float
+) -> np.ndarray:
   """Bilinear interpolation of f on periodic grid at query points."""
   N, M = f.shape
   L = N * h
@@ -80,10 +82,10 @@ def _interpolate_periodic(f: np.ndarray, Xq: np.ndarray, Yq: np.ndarray,
   fy = iy - np.floor(iy)
 
   return (
-      f[ix0, iy0] * (1 - fx) * (1 - fy) +  # noqa: W504
-      f[ix1, iy0] * fx * (1 - fy) +  # noqa: W504
-      f[ix0, iy1] * (1 - fx) * fy +  # noqa: W504
-      f[ix1, iy1] * fx * fy
+    f[ix0, iy0] * (1 - fx) * (1 - fy)  # noqa: W504
+    + f[ix1, iy0] * fx * (1 - fy)  # noqa: W504
+    + f[ix0, iy1] * (1 - fx) * fy  # noqa: W504
+    + f[ix1, iy1] * fx * fy
   )
 
 
@@ -92,21 +94,23 @@ def _interpolate_periodic(f: np.ndarray, Xq: np.ndarray, Yq: np.ndarray,
 # ======================================================================
 
 
-def _periodic_center_of_mass(rho: np.ndarray, X: np.ndarray, Y: np.ndarray,
-                             h: float) -> tuple[float, float]:
+def _periodic_center_of_mass(
+  rho: np.ndarray, X: np.ndarray, Y: np.ndarray, h: float
+) -> tuple[float, float]:
   """Compute the center of mass on a periodic domain using angular mapping.
 
-    Maps coordinates to angles θ = 2πx, computes mean direction,
-    maps back. This handles wrapping correctly.
-    """
+  Maps coordinates to angles θ = 2πx, computes mean direction,
+  maps back. This handles wrapping correctly.
+  """
   L = X[-1, 0] + h  # domain size = N*h for periodic grid
   mass = np.sum(rho) * h * h
 
   # Angular mean for x
   theta_x = 2 * np.pi * X / L
   cx = np.arctan2(
-      np.sum(rho * np.sin(theta_x)) * h * h / mass,
-      np.sum(rho * np.cos(theta_x)) * h * h / mass)
+    np.sum(rho * np.sin(theta_x)) * h * h / mass,
+    np.sum(rho * np.cos(theta_x)) * h * h / mass,
+  )
   mean_x = cx * L / (2 * np.pi)
   if mean_x < 0:
     mean_x += L
@@ -114,8 +118,9 @@ def _periodic_center_of_mass(rho: np.ndarray, X: np.ndarray, Y: np.ndarray,
   # Angular mean for y
   theta_y = 2 * np.pi * Y / L
   cy = np.arctan2(
-      np.sum(rho * np.sin(theta_y)) * h * h / mass,
-      np.sum(rho * np.cos(theta_y)) * h * h / mass)
+    np.sum(rho * np.sin(theta_y)) * h * h / mass,
+    np.sum(rho * np.cos(theta_y)) * h * h / mass,
+  )
   mean_y = cy * L / (2 * np.pi)
   if mean_y < 0:
     mean_y += L
@@ -142,35 +147,35 @@ def _periodic_displacement(x0: float, x1: float, L: float) -> float:
 
 
 def solve_ot(
-    rho0: np.ndarray,
-    rho1: np.ndarray,
-    h: float,
-    *,
-    solver: Literal["iteration", "newton"] = "newton",
-    bc: BoundaryCondition = BoundaryCondition.PERIODIC,
-    dw: int = 2,
-    tol: float = 1e-6,
-    max_iter: int = 100,
-    ot_max_iter: int = 50,
-    **solver_kwargs,
+  rho0: np.ndarray,
+  rho1: np.ndarray,
+  h: float,
+  *,
+  solver: Literal["iteration", "newton"] = "newton",
+  bc: BoundaryCondition = BoundaryCondition.PERIODIC,
+  dw: int = 2,
+  tol: float = 1e-6,
+  max_iter: int = 100,
+  ot_max_iter: int = 50,
+  **solver_kwargs,
 ) -> OTResult:
   """Solve optimal transport between ρ₀ and ρ₁.
 
-    Args:
-      rho0: Source density.
-      rho1: Target density.
-      h: Grid spacing.
-      solver: "iteration" or "newton".
-      bc: Boundary condition.
-      dw: Stencil width.
-      tol: Convergence tolerance.
-      max_iter: Max iterations for inner MA solver.
-      ot_max_iter: Max outer fixed-point iterations.
-      **solver_kwargs: Additional arguments for the inner solver.
+  Args:
+   rho0: Source density.
+   rho1: Target density.
+   h: Grid spacing.
+   solver: "iteration" or "newton".
+   bc: Boundary condition.
+   dw: Stencil width.
+   tol: Convergence tolerance.
+   max_iter: Max iterations for inner MA solver.
+   ot_max_iter: Max outer fixed-point iterations.
+   **solver_kwargs: Additional arguments for the inner solver.
 
-    Returns:
-      OTResult object.
-    """
+  Returns:
+   OTResult object.
+  """
   N, M = rho0.shape
   assert rho0.shape == rho1.shape
 
@@ -188,30 +193,31 @@ def solve_ot(
     raise NotImplementedError("Only periodic BC supported currently.")
 
   return _solve_ot_periodic(
-      rho0_n,
-      rho1_n,
-      h,
-      N,
-      solver,
-      dw,
-      tol,
-      max_iter,
-      ot_max_iter,
-      **solver_kwargs,
+    rho0_n,
+    rho1_n,
+    h,
+    N,
+    solver,
+    dw,
+    tol,
+    max_iter,
+    ot_max_iter,
+    **solver_kwargs,
   )
 
 
 def _solve_ot_periodic(
-    rho0: np.ndarray,
-    rho1: np.ndarray,
-    h: float,
-    N: int,
-    solver_name: str,
-    dw: int,
-    tol: float,
-    max_iter: int,
-    ot_max_iter: int,
-    **solver_kwargs,
+  rho0: np.ndarray,
+  rho1: np.ndarray,
+  h: float,
+  N: int,
+  solver_name: str,
+  dw: int,
+  tol: float,
+  max_iter: int,
+  ot_max_iter: int,
+  damping: float = 1.0,
+  **solver_kwargs,
 ) -> OTResult:
   """Periodic OT via perturbation Monge-Ampère."""
   L = N * h
@@ -219,7 +225,9 @@ def _solve_ot_periodic(
   X, Y = np.meshgrid(x, x, indexing="ij")
 
   stencil_pairs = generate_stencil_directions(dw)
-  solve_fn = solve_ma_newton if solver_name == "newton" else solve_ma_iteration
+  solve_fn = (
+    solve_ma_newton if solver_name == "newton" else solve_ma_iteration
+  )
 
   # 1. Estimate mean displacement from center-of-mass difference
   com0_x, com0_y = _periodic_center_of_mass(rho0, X, Y, h)
@@ -253,15 +261,15 @@ def _solve_ot_periodic(
 
     # Solve det(I + D²ψ_per) = rhs
     result = solve_fn(
-        rhs,
-        h,
-        dw=dw,
-        tol=tol,
-        max_iter=max_iter,
-        bc=BoundaryCondition.PERIODIC,
-        u0=psi_per.copy(),
-        stencil_pairs=stencil_pairs,
-        **solver_kwargs,
+      rhs,
+      h,
+      dw=dw,
+      tol=tol,
+      max_iter=max_iter,
+      bc=BoundaryCondition.PERIODIC,
+      u0=psi_per.copy(),
+      stencil_pairs=stencil_pairs,
+      **solver_kwargs,
     )
     last_result = result
 
@@ -270,7 +278,7 @@ def _solve_ot_periodic(
 
     # Damped update of ψ_per
     change = np.max(np.abs(psi_new - psi_per))
-    psi_per = psi_new
+    psi_per = psi_per + damping * (psi_new - psi_per)
 
     if change < tol:
       break
@@ -287,11 +295,11 @@ def _solve_ot_periodic(
   w2_sq = h * h * np.sum((disp_x**2 + disp_y**2) * rho0)
 
   return OTResult(
-      psi=psi_per,
-      mean_shift=c,
-      transport_map=(Tx, Ty),
-      solver_result=last_result,
-      w2_squared=float(w2_sq),
+    psi=psi_per,
+    mean_shift=c,
+    transport_map=(Tx, Ty),
+    solver_result=last_result,
+    w2_squared=float(w2_sq),
   )
 
 
@@ -301,45 +309,45 @@ def _solve_ot_periodic(
 
 
 def wasserstein2(
-    rho0: np.ndarray,
-    rho1: np.ndarray,
-    h: float,
-    *,
-    solver: Literal["iteration", "newton"] = "newton",
-    bc: BoundaryCondition = BoundaryCondition.PERIODIC,
-    dw: int = 2,
-    tol: float = 1e-6,
-    max_iter: int = 100,
-    ot_max_iter: int = 50,
-    **solver_kwargs,
+  rho0: np.ndarray,
+  rho1: np.ndarray,
+  h: float,
+  *,
+  solver: Literal["iteration", "newton"] = "newton",
+  bc: BoundaryCondition = BoundaryCondition.PERIODIC,
+  dw: int = 2,
+  tol: float = 1e-6,
+  max_iter: int = 100,
+  ot_max_iter: int = 50,
+  **solver_kwargs,
 ) -> float:
   """Compute the Wasserstein-2 distance between two densities.
 
-    Args:
-      rho0: Source density.
-      rho1: Target density.
-      h: Grid spacing.
-      solver: "iteration" or "newton".
-      bc: Boundary condition.
-      dw: Stencil width.
-      tol: Convergence tolerance.
-      max_iter: Max inner solver iterations.
-      ot_max_iter: Max outer iterations.
-      **solver_kwargs: Additional arguments.
+  Args:
+   rho0: Source density.
+   rho1: Target density.
+   h: Grid spacing.
+   solver: "iteration" or "newton".
+   bc: Boundary condition.
+   dw: Stencil width.
+   tol: Convergence tolerance.
+   max_iter: Max inner solver iterations.
+   ot_max_iter: Max outer iterations.
+   **solver_kwargs: Additional arguments.
 
-    Returns:
-      Wasserstein-2 distance.
-    """
+  Returns:
+   Wasserstein-2 distance.
+  """
   result = solve_ot(
-      rho0,
-      rho1,
-      h,
-      solver=solver,
-      bc=bc,
-      dw=dw,
-      tol=tol,
-      max_iter=max_iter,
-      ot_max_iter=ot_max_iter,
-      **solver_kwargs,
+    rho0,
+    rho1,
+    h,
+    solver=solver,
+    bc=bc,
+    dw=dw,
+    tol=tol,
+    max_iter=max_iter,
+    ot_max_iter=ot_max_iter,
+    **solver_kwargs,
   )
   return float(np.sqrt(max(result.w2_squared, 0.0)))

@@ -53,9 +53,9 @@ class TestLaplacian:
     numerical = laplacian(u, h, BoundaryCondition.PERIODIC)
     err = np.max(np.abs(numerical - exact))
     # 5-point Laplacian is O(h²), so err should be modest at n=64
-    assert err == pytest.approx(0.0, abs=0.5), (
-      f"Laplacian error too large: {err:.6f}"
-    )
+    assert err == pytest.approx(
+      0.0, abs=0.5
+    ), f"Laplacian error too large: {err:.6f}"
 
   def test_laplacian_convergence_periodic(self):
     """Verify O(h²) convergence of the Laplacian on a smooth function."""
@@ -96,9 +96,9 @@ class TestLaplacian:
     interior = numerical[1:-1, 1:-1]
     exact_int = exact[1:-1, 1:-1]
     err = np.max(np.abs(interior - exact_int))
-    assert err == pytest.approx(0.0, abs=1.0), (
-      f"Dirichlet Laplacian error too large: {err:.6f}"
-    )
+    assert err == pytest.approx(
+      0.0, abs=1.0
+    ), f"Dirichlet Laplacian error too large: {err:.6f}"
 
 
 # ======================================================================
@@ -119,7 +119,9 @@ class TestDirectionalSecondDerivative:
       u, h, (1, 0), BoundaryCondition.PERIODIC
     )
     err = np.max(np.abs(numerical - exact))
-    assert err == pytest.approx(0.0, abs=0.5), f"Directional D² error: {err:.6f}"
+    assert err == pytest.approx(
+      0.0, abs=0.5
+    ), f"Directional D² error: {err:.6f}"
 
   def test_diagonal_direction(self):
     """D²_(1,1) of cos(2π(x+y)).
@@ -128,7 +130,7 @@ class TestDirectionalSecondDerivative:
     For v=(1,1), |v|²=2, so denominator = 2h².
     u(x+h,y+h) = cos(2π(x+y) + 4πh).
     Numerator = cos(α+4πh) + cos(α-4πh) - 2cos(α)
-          = 2cos(α)(cos(4πh) - 1) → -16π²h²cos(α)
+       = 2cos(α)(cos(4πh) - 1) → -16π²h²cos(α)
     D²_v u → -16π²h²cos(α) / (2h²) = -8π²cos(2π(x+y))
     """
     n = 64
@@ -139,7 +141,9 @@ class TestDirectionalSecondDerivative:
       u, h, (1, 1), BoundaryCondition.PERIODIC
     )
     err = np.max(np.abs(numerical - exact))
-    assert err == pytest.approx(0.0, abs=2.0), f"Diagonal D² error: {err:.6f}"
+    assert err == pytest.approx(
+      0.0, abs=2.0
+    ), f"Diagonal D² error: {err:.6f}"
 
   def test_convergence(self):
     """Verify O(h²) convergence for D²_(1,0)."""
@@ -148,7 +152,11 @@ class TestDirectionalSecondDerivative:
       X, Y, h = _make_grid(n)
       u = np.cos(2 * np.pi * X) * np.cos(2 * np.pi * Y)
       # D²_(1,0) u = -(2π)² cos(2πx) cos(2πy) = the xx-part only
-      exact = -((2 * np.pi) ** 2) * np.cos(2 * np.pi * X) * np.cos(2 * np.pi * Y)
+      exact = (
+        -((2 * np.pi) ** 2)
+        * np.cos(2 * np.pi * X)
+        * np.cos(2 * np.pi * Y)
+      )
       numerical = directional_second_derivative(
         u, h, (1, 0), BoundaryCondition.PERIODIC
       )
@@ -219,14 +227,15 @@ class TestDetHessian:
     # u = -a/(2π)² cos(2πx) - c/(2π)² cos(2πy)
     # u_xx = a cos(2πx), u_yy = c cos(2πy), u_xy = 0
     # det = ac cos(2πx)cos(2πy)
-    u = (
-      -a / (2 * np.pi) ** 2 * np.cos(2 * np.pi * X)  # noqa: W504
-      - c / (2 * np.pi) ** 2 * np.cos(2 * np.pi * Y)
-    )
+    u = -a / (2 * np.pi) ** 2 * np.cos(2 * np.pi * X) - c / (  # noqa: W504
+      2 * np.pi
+    ) ** 2 * np.cos(2 * np.pi * Y)
     exact = a * c * np.cos(2 * np.pi * X) * np.cos(2 * np.pi * Y)
     numerical = det_hessian_standard(u, h, BoundaryCondition.PERIODIC)
     err = np.max(np.abs(numerical - exact))
-    assert err == pytest.approx(0.0, abs=0.5), f"det(Hessian) error: {err:.6f}"
+    assert err == pytest.approx(
+      0.0, abs=0.5
+    ), f"det(Hessian) error: {err:.6f}"
 
   def test_convergence(self):
     """Verify convergence of det(D²u) for smooth periodic function."""
@@ -235,9 +244,15 @@ class TestDetHessian:
       X, Y, h = _make_grid(n)
       u = np.cos(2 * np.pi * X) * np.cos(2 * np.pi * Y)
       # u_xx = -(2π)² cos(2πx)cos(2πy), u_yy likewise, u_xy = (2π)²sin(2πx)sin(2πy)
-      uxx = -((2 * np.pi) ** 2) * np.cos(2 * np.pi * X) * np.cos(2 * np.pi * Y)
+      uxx = (
+        -((2 * np.pi) ** 2)
+        * np.cos(2 * np.pi * X)
+        * np.cos(2 * np.pi * Y)
+      )
       uyy = uxx
-      uxy = (2 * np.pi) ** 2 * np.sin(2 * np.pi * X) * np.sin(2 * np.pi * Y)
+      uxy = (
+        (2 * np.pi) ** 2 * np.sin(2 * np.pi * X) * np.sin(2 * np.pi * Y)
+      )
       exact = uxx * uyy - uxy**2
       numerical = det_hessian_standard(u, h, BoundaryCondition.PERIODIC)
       errors.append(np.max(np.abs(numerical - exact)))
@@ -258,20 +273,30 @@ class TestMAOperator:
     X, Y, h = _make_grid(n)
     # Periodic-compatible: u such that u_xx = u_yy = 1, u_xy = 0
     # u = -1/(2π)² [cos(2πx) + cos(2πy)]
-    u = -1.0 / (2 * np.pi) ** 2 * (np.cos(2 * np.pi * X) + np.cos(2 * np.pi * Y))
+    u = (
+      -1.0
+      / (2 * np.pi) ** 2
+      * (np.cos(2 * np.pi * X) + np.cos(2 * np.pi * Y))
+    )
     # det(D²u) = cos(2πx)*cos(2πy)
     exact = np.cos(2 * np.pi * X) * np.cos(2 * np.pi * Y)
 
     pairs = generate_stencil_directions(2)
     numerical = ma_operator(u, h, pairs, BoundaryCondition.PERIODIC)
     err = np.max(np.abs(numerical - exact))
-    assert err == pytest.approx(0.0, abs=1.0), f"MA operator error: {err:.6f}"
+    assert err == pytest.approx(
+      0.0, abs=1.0
+    ), f"MA operator error: {err:.6f}"
 
   def test_ma_le_det_hessian(self):
     """MA (monotone) ≤ det(D²u) (standard) for convex-ish functions."""
     n = 64
     X, Y, h = _make_grid(n)
-    u = -1.0 / (2 * np.pi) ** 2 * (np.cos(2 * np.pi * X) + np.cos(2 * np.pi * Y))
+    u = (
+      -1.0
+      / (2 * np.pi) ** 2
+      * (np.cos(2 * np.pi * X) + np.cos(2 * np.pi * Y))
+    )
 
     ma_val = ma_operator(u, h, dw=2, bc=BoundaryCondition.PERIODIC)
     det_val = det_hessian_standard(u, h, BoundaryCondition.PERIODIC)
@@ -279,9 +304,9 @@ class TestMAOperator:
     # The monotone min should be ≤ the standard det (up to discretization)
     diff = ma_val - det_val
     # Allow small positive values due to discretization
-    assert np.max(diff) == pytest.approx(0.0, abs=0.5), (
-      f"MA exceeds standard det(Hessian) by {np.max(diff):.4f}"
-    )
+    assert np.max(diff) == pytest.approx(
+      0.0, abs=0.5
+    ), f"MA exceeds standard det(Hessian) by {np.max(diff):.4f}"
 
 
 # ======================================================================
@@ -301,8 +326,12 @@ class TestGradient:
     ux, uy = gradient(u, h, BoundaryCondition.PERIODIC)
     err_x = np.max(np.abs(ux - exact_ux))
     err_y = np.max(np.abs(uy - exact_uy))
-    assert err_x == pytest.approx(0.0, abs=1.0), f"Gradient x error: {err_x:.6f}"
-    assert err_y == pytest.approx(0.0, abs=1.0), f"Gradient y error: {err_y:.6f}"
+    assert err_x == pytest.approx(
+      0.0, abs=1.0
+    ), f"Gradient x error: {err_x:.6f}"
+    assert err_y == pytest.approx(
+      0.0, abs=1.0
+    ), f"Gradient y error: {err_y:.6f}"
 
   def test_convergence(self):
     """O(h²) convergence of the gradient."""
@@ -310,7 +339,9 @@ class TestGradient:
     for n in [32, 64, 128]:
       X, Y, h = _make_grid(n)
       u = np.cos(2 * np.pi * X) * np.cos(2 * np.pi * Y)
-      exact_ux = -2 * np.pi * np.sin(2 * np.pi * X) * np.cos(2 * np.pi * Y)
+      exact_ux = (
+        -2 * np.pi * np.sin(2 * np.pi * X) * np.cos(2 * np.pi * Y)
+      )
       ux, _ = gradient(u, h, BoundaryCondition.PERIODIC)
       errors.append(np.max(np.abs(ux - exact_ux)))
 

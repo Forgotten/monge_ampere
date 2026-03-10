@@ -1,12 +1,13 @@
 """Finite difference operators for the Monge-Ampère equation.
 
 Implements:
-  - Standard 5-point Laplacian
-  - Wide-stencil directional second derivatives (Oberman-Froese)
-  - Stencil direction generation
-  - Monotone MA operator
-  - Standard (non-monotone) det(Hessian)
+ - Standard 5-point Laplacian
+ - Wide-stencil directional second derivatives (Oberman-Froese)
+ - Stencil direction generation
+ - Monotone MA operator
+ - Standard (non-monotone) det(Hessian)
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -18,21 +19,23 @@ from monge_ampere.boundary import BoundaryCondition, apply_shift
 # ---------------------------------------------------------------------------
 
 
-def laplacian(u: np.ndarray,
-              h: float,
-              bc: BoundaryCondition = BoundaryCondition.PERIODIC,
-              boundary_vals: np.ndarray | None = None) -> np.ndarray:
+def laplacian(
+  u: np.ndarray,
+  h: float,
+  bc: BoundaryCondition = BoundaryCondition.PERIODIC,
+  boundary_vals: np.ndarray | None = None,
+) -> np.ndarray:
   """Standard 5-point Laplacian Δu = u_xx + u_yy.
 
-    Args:
-      u: Input array
-      h: Grid spacing
-      bc: Boundary condition type
-      boundary_vals: Used when bc is DIRICHLET.
+  Args:
+   u: Input array
+   h: Grid spacing
+   bc: Boundary condition type
+   boundary_vals: Used when bc is DIRICHLET.
 
-    Returns:
-      The Laplacian.
-    """
+  Returns:
+   The Laplacian.
+  """
   up = apply_shift(u, (-1, 0), bc, boundary_vals)
   dn = apply_shift(u, (1, 0), bc, boundary_vals)
   lt = apply_shift(u, (0, -1), bc, boundary_vals)
@@ -46,28 +49,28 @@ def laplacian(u: np.ndarray,
 
 
 def directional_second_derivative(
-    u: np.ndarray,
-    h: float,
-    v: tuple[int, int],
-    bc: BoundaryCondition = BoundaryCondition.PERIODIC,
-    boundary_vals: np.ndarray | None = None,
+  u: np.ndarray,
+  h: float,
+  v: tuple[int, int],
+  bc: BoundaryCondition = BoundaryCondition.PERIODIC,
+  boundary_vals: np.ndarray | None = None,
 ) -> np.ndarray:
   """Second derivative of *u* along lattice direction *v*.
 
-    D²_v u(x) = [u(x+hv) + u(x-hv) - 2u(x)] / (h|v|)²
+  D²_v u(x) = [u(x+hv) + u(x-hv) - 2u(x)] / (h|v|)²
 
-    Args:
-      u: Input array.
-      h: Grid spacing.
-      v: Lattice direction vector.
-      bc: Boundary condition.
-      boundary_vals: Used when bc is DIRICHLET.
+  Args:
+   u: Input array.
+   h: Grid spacing.
+   v: Lattice direction vector.
+   bc: Boundary condition.
+   boundary_vals: Used when bc is DIRICHLET.
 
-    Returns:
-      The directional second derivative.
-    """
+  Returns:
+   The directional second derivative.
+  """
   v = (int(v[0]), int(v[1]))
-  norm_sq = v[0]**2 + v[1]**2
+  norm_sq = v[0] ** 2 + v[1] ** 2
   if norm_sq == 0:
     raise ValueError("Direction vector v must be non-zero.")
 
@@ -82,25 +85,25 @@ def directional_second_derivative(
 
 
 def generate_stencil_directions(
-    dw: int = 2
+  dw: int = 2,
 ) -> list[tuple[tuple[int, int], tuple[int, int]]]:
   """Generate orthogonal direction pairs for the wide-stencil MA operator.
 
-    Each pair (v, w) consists of integer lattice vectors satisfying:
-      - v · w = 0 (exactly orthogonal)
-      - 1 ≤ |v| ≤ dw  and  1 ≤ |w| ≤ dw
-      - v and w span R² (i.e., the pair covers the full Hessian)
+  Each pair (v, w) consists of integer lattice vectors satisfying:
+   - v · w = 0 (exactly orthogonal)
+   - 1 ≤ |v| ≤ dw  and  1 ≤ |w| ≤ dw
+   - v and w span R² (i.e., the pair covers the full Hessian)
 
-    For the monotone MA discretization we need pairs whose angles densely
-    cover [0, π).  The minimum over all such pairs gives a lower bound on
-    the determinant that converges to det(D²u) as dw → ∞.
+  For the monotone MA discretization we need pairs whose angles densely
+  cover [0, π).  The minimum over all such pairs gives a lower bound on
+  the determinant that converges to det(D²u) as dw → ∞.
 
-    Args:
-      dw: Maximum stencil radius (>=1).
+  Args:
+   dw: Maximum stencil radius (>=1).
 
-    Returns:
-      List of direction pairs.
-    """
+  Returns:
+   List of direction pairs.
+  """
   if dw < 1:
     raise ValueError("Stencil width dw must be >= 1.")
 
@@ -131,7 +134,7 @@ def generate_stencil_directions(
     # Check if w_base or its multiples are in our lattice ball
     for k in range(1, dw + 1):
       w = (k * w_base[0], k * w_base[1])
-      if w[0]**2 + w[1]**2 <= dw * dw:
+      if w[0] ** 2 + w[1] ** 2 <= dw * dw:
         pairs.append((cv, _canonicalize(w)))
 
   # Remove duplicate pairs
@@ -153,9 +156,9 @@ def generate_stencil_directions(
 def _canonicalize(v: tuple[int, int]) -> tuple[int, int]:
   """Return the canonical representative of ±v.
 
-    Picks the version where the first nonzero component is positive,
-    breaking ties by the second component.
-    """
+  Picks the version where the first nonzero component is positive,
+  breaking ties by the second component.
+  """
   if v[0] > 0 or (v[0] == 0 and v[1] > 0):
     return v
   return (-v[0], -v[1])
@@ -167,31 +170,31 @@ def _canonicalize(v: tuple[int, int]) -> tuple[int, int]:
 
 
 def ma_operator(
-    u: np.ndarray,
-    h: float,
-    stencil_pairs: list[tuple[tuple[int, int], tuple[int, int]]] | None = None,
-    bc: BoundaryCondition = BoundaryCondition.PERIODIC,
-    boundary_vals: np.ndarray | None = None,
-    dw: int = 2,
+  u: np.ndarray,
+  h: float,
+  stencil_pairs: list[tuple[tuple[int, int], tuple[int, int]]] | None = None,
+  bc: BoundaryCondition = BoundaryCondition.PERIODIC,
+  boundary_vals: np.ndarray | None = None,
+  dw: int = 2,
 ) -> np.ndarray:
   """Monotone discretization of det(D²u) using the Oberman-Froese scheme.
 
-    MA_h[u] = min_{(v,w)} (D²_v u) * (D²_w u)
+  MA_h[u] = min_{(v,w)} (D²_v u) * (D²_w u)
 
-    where the minimum is taken over orthogonal direction pairs.  The minimum
-    ensures monotonicity → convergence to viscosity solution.
+  where the minimum is taken over orthogonal direction pairs.  The minimum
+  ensures monotonicity → convergence to viscosity solution.
 
-    Args:
-      u: Input field.
-      h: Grid spacing.
-      stencil_pairs: Direction pairs.
-      bc: Boundary condition.
-      boundary_vals: Used when bc is DIRICHLET.
-      dw: Stencil width if stencil_pairs is None.
+  Args:
+   u: Input field.
+   h: Grid spacing.
+   stencil_pairs: Direction pairs.
+   bc: Boundary condition.
+   boundary_vals: Used when bc is DIRICHLET.
+   dw: Stencil width if stencil_pairs is None.
 
-    Returns:
-      The evaluated operator array.
-    """
+  Returns:
+   The evaluated operator array.
+  """
   if stencil_pairs is None:
     stencil_pairs = generate_stencil_directions(dw)
 
@@ -212,25 +215,25 @@ def ma_operator(
 
 
 def det_hessian_standard(
-    u: np.ndarray,
-    h: float,
-    bc: BoundaryCondition = BoundaryCondition.PERIODIC,
-    boundary_vals: np.ndarray | None = None,
+  u: np.ndarray,
+  h: float,
+  bc: BoundaryCondition = BoundaryCondition.PERIODIC,
+  boundary_vals: np.ndarray | None = None,
 ) -> np.ndarray:
   """Standard finite difference det(D²u) = u_xx * u_yy - u_xy².
 
-    Uses central differences for u_xx, u_yy (second order) and the standard
-    cross-derivative stencil for u_xy.
+  Uses central differences for u_xx, u_yy (second order) and the standard
+  cross-derivative stencil for u_xy.
 
-    Args:
-      u: Input array.
-      h: Grid spacing.
-      bc: Boundary condition.
-      boundary_vals: Used when bc is DIRICHLET.
+  Args:
+   u: Input array.
+   h: Grid spacing.
+   bc: Boundary condition.
+   boundary_vals: Used when bc is DIRICHLET.
 
-    Returns:
-      The evaluated determinant.
-    """
+  Returns:
+   The evaluated determinant.
+  """
   # u_xx = (u[i+1,j] + u[i-1,j] - 2u) / h²
   u_xx = directional_second_derivative(u, h, (1, 0), bc, boundary_vals)
   # u_yy = (u[i,j+1] + u[i,j-1] - 2u) / h²
@@ -252,22 +255,22 @@ def det_hessian_standard(
 
 
 def gradient(
-    u: np.ndarray,
-    h: float,
-    bc: BoundaryCondition = BoundaryCondition.PERIODIC,
-    boundary_vals: np.ndarray | None = None,
+  u: np.ndarray,
+  h: float,
+  bc: BoundaryCondition = BoundaryCondition.PERIODIC,
+  boundary_vals: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
   """Central-difference gradient  (∂u/∂x, ∂u/∂y).
 
-    Args:
-      u: Input array.
-      h: Grid spacing.
-      bc: Boundary condition type.
-      boundary_vals: Used when bc is DIRICHLET.
+  Args:
+   u: Input array.
+   h: Grid spacing.
+   bc: Boundary condition type.
+   boundary_vals: Used when bc is DIRICHLET.
 
-    Returns:
-      Tuple of gradient components.
-    """
+  Returns:
+   Tuple of gradient components.
+  """
   u_ip = apply_shift(u, (1, 0), bc, boundary_vals)
   u_im = apply_shift(u, (-1, 0), bc, boundary_vals)
   ux = (u_ip - u_im) / (2.0 * h)
