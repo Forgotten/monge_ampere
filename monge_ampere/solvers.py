@@ -27,12 +27,11 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-from monge_ampere.boundary import BoundaryCondition, apply_shift
+from monge_ampere.boundary import BoundaryCondition
 from monge_ampere.operators import (
     directional_second_derivative,
     generate_stencil_directions,
     ma_operator,
-    laplacian,
 )
 
 # ======================================================================
@@ -373,7 +372,6 @@ def solve_ma_newton(
       SolverResult.
     """
   N, M = rhs.shape
-  n_dof = N * M
   if stencil_pairs is None:
     stencil_pairs = generate_stencil_directions(dw)
 
@@ -418,7 +416,7 @@ def solve_ma_newton(
 
     # Pin mean to zero for the periodic case
     if use_perturbation:
-      F_mean = np.mean(F)
+      pass
       # The mean of F is related to the compatibility condition
       # rhs should have mean 1 for the perturbation to be well-posed
 

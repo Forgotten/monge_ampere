@@ -7,11 +7,7 @@ Implements:
   - Monotone MA operator
   - Standard (non-monotone) det(Hessian)
 """
-
 from __future__ import annotations
-
-import math
-from typing import Sequence
 
 import numpy as np
 
@@ -26,7 +22,7 @@ def laplacian(u: np.ndarray,
               h: float,
               bc: BoundaryCondition = BoundaryCondition.PERIODIC,
               boundary_vals: np.ndarray | None = None) -> np.ndarray:
-  """Standard 5-point Laplacian  Δu = u_xx + u_yy.
+  """Standard 5-point Laplacian Δu = u_xx + u_yy.
 
     Args:
       u: Input array
@@ -86,7 +82,8 @@ def directional_second_derivative(
 
 
 def generate_stencil_directions(
-    dw: int = 2) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+    dw: int = 2
+) -> list[tuple[tuple[int, int], tuple[int, int]]]:
   """Generate orthogonal direction pairs for the wide-stencil MA operator.
 
     Each pair (v, w) consists of integer lattice vectors satisfying:

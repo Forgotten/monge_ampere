@@ -23,22 +23,20 @@ Algorithm:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable, Literal
+from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 
-from monge_ampere.boundary import BoundaryCondition, apply_shift
+from monge_ampere.boundary import BoundaryCondition
 from monge_ampere.operators import (
     gradient,
     generate_stencil_directions,
-    directional_second_derivative,
 )
 from monge_ampere.solvers import (
     solve_ma_iteration,
     solve_ma_newton,
     SolverResult,
-    _ma_perturbation,
 )
 
 # ======================================================================
@@ -81,8 +79,12 @@ def _interpolate_periodic(f: np.ndarray, Xq: np.ndarray, Yq: np.ndarray,
   fx = ix - np.floor(ix)
   fy = iy - np.floor(iy)
 
-  return (f[ix0, iy0] * (1 - fx) * (1 - fy) + f[ix1, iy0] * fx * (1 - fy) +
-          f[ix0, iy1] * (1 - fx) * fy + f[ix1, iy1] * fx * fy)
+  return (
+      f[ix0, iy0] * (1 - fx) * (1 - fy) +  # noqa: W504
+      f[ix1, iy0] * fx * (1 - fy) +  # noqa: W504
+      f[ix0, iy1] * (1 - fx) * fy +  # noqa: W504
+      f[ix1, iy1] * fx * fy
+  )
 
 
 # ======================================================================
